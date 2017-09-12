@@ -1,0 +1,9 @@
+version: '2'
+
+services:
+  app:
+    command: "sh start_app.sh"
+    image: python
+    working_dir: /project
+    volumes:
+      - ./:/project
