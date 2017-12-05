@@ -5,11 +5,21 @@ required_packages = [
   'bottle>=0.12.13'
 ]
 
+
+def long_description():
+  os.system('pandoc --from=markdown --to=rst --output=README.rst README.md')
+  readme_fn = os.path.join(os.path.dirname(__file__), 'README.rst')
+  if os.path.exists(readme_fn):
+    with open(readme_fn) as f:
+      return f.read()
+  else:
+    return 'not available'
+
 setup(
     name='Graphene-Bottle',
     version='0.1.0',
     description='Adds GraphQL support to your Bottle application',
-    long_description=open('README.rst').read(),
+    long_description=long_description(),
     url='https://github.com/danielbdias/graphene-bottle',
     download_url='https://github.com/danielbdias/graphene-bottle/releases',
     author='Daniel Baptista Dias',

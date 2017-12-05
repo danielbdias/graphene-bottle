@@ -1,19 +1,28 @@
 import pytest
-import json
+from webtest import TestApp
+
+try:
+    from urllib import urlencode
+except ImportError:
+    from urllib.parse import urlencode
 
 from .app import create_app
+
 
 @pytest.fixture
 def app():
     return create_app()
 
 
-def test_allows_get_with_query_param(client):
-    response = client.get(url_string(query='{test}'))
+def test_allows_get_with_query_param(app):
+    client = TestApp(app)
+
+    response = client.get('/graphql?' + urlencode({ 'query': '{ hello }' }))
 
     assert response.status_code == 200
-    assert response_json(response) == {
-        'data': {'test': "Hello World"}
+    assert response.content_type == 'application/json'
+    assert response.json == {
+        'data': {'hello': "Hello stranger"}
     }
 
 
