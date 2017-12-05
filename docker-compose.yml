@@ -2,8 +2,10 @@ version: '2'
 
 services:
   app:
-    command: "sh start_app.sh"
+    command: "sh tests/run_as_dev.sh"
     image: python
     working_dir: /project
     volumes:
       - ./:/project
+    ports:
+      - 5000:5000

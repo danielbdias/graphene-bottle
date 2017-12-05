@@ -10,9 +10,9 @@ def json_response(data):
 
 
 def handle_graphql_response(func, graphene_schema):
-    def wrapper(func, graphene_schema):
+    def wrapper():
         try:
-            result = func()
+            result = func(graphene_schema)
             output = {'data': result.data}
 
             if result.errors is not None:
