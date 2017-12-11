@@ -1,5 +1,5 @@
 import pytest
-from webtest import TestApp
+import json
 
 try:
     from urllib import urlencode
@@ -8,16 +8,15 @@ except ImportError:
 
 from .app import create_app
 
+def encode_get_url(**params):
+    return '/graphql?' + urlencode(params)
 
 @pytest.fixture
-def app():
-    return create_app()
+def client():
+    return create_app(test_mode=True)
 
-
-def test_allows_get_with_query_param(app):
-    client = TestApp(app)
-
-    response = client.get('/graphql?' + urlencode({ 'query': '{ hello }' }))
+def test_allows_get_with_query_param(client):
+    response = client.get(encode_get_url(query='{ hello }'))
 
     assert response.status_code == 200
     assert response.content_type == 'application/json'
@@ -25,71 +24,74 @@ def test_allows_get_with_query_param(app):
         'data': {'hello': "Hello stranger"}
     }
 
+def test_allows_get_with_variable_values(client):
+    response = client.get(encode_get_url(
+            query='query helloName($name: String){ hello(name: $name) }',
+            variables=json.dumps({'name': "Dolly"})
+        ))
 
-# def test_allows_get_with_variable_values(client):
-#     response = client.get(url_string(
-#         query='query helloWho($who: String){ test(who: $who) }',
-#         variables=json.dumps({'who': "Dolly"})
-#     ))
+    assert response.status_code == 200
+    assert response.content_type == 'application/json'
+    assert response.json == {
+        'data': {'hello': "Hello Dolly"}
+    }
 
-#     assert response.status_code == 200
-#     assert response_json(response) == {
-#         'data': {'test': "Hello Dolly"}
-#     }
+def test_allows_get_with_operation_name(client):
+    response = client.get(encode_get_url(
+            query='''
+            query helloYou { hello(name: "You"), ...shared }
+            query helloWorld { hello(name: "World"), ...shared }
+            query helloDolly { hello(name: "Dolly"), ...shared }
+            fragment shared on SystemQueries {
+            shared: hello(name: "Everyone")
+            }
+            ''',
+            operationName='helloWorld'
+        ))
 
+    assert response.status_code == 200
+    assert response.content_type == 'application/json'
+    assert response.json == {
+        'data': {
+            'hello': 'Hello World',
+            'shared': 'Hello Everyone'
+        }
+    }
 
-# def test_allows_get_with_operation_name(client):
-#     response = client.get(url_string(
-#         query='''
-#         query helloYou { test(who: "You"), ...shared }
-#         query helloWorld { test(who: "World"), ...shared }
-#         query helloDolly { test(who: "Dolly"), ...shared }
-#         fragment shared on QueryRoot {
-#           shared: test(who: "Everyone")
-#         }
-#         ''',
-#         operationName='helloWorld'
-#     ))
+def test_reports_validation_errors(client):
+    response = client.get(encode_get_url(
+            query='{ hello, unknownOne, unknownTwo }'
+        ),
+        expect_errors=True)
 
-#     assert response.status_code == 200
-#     assert response_json(response) == {
-#         'data': {
-#             'test': 'Hello World',
-#             'shared': 'Hello Everyone'
-#         }
-#     }
-
-
-# def test_reports_validation_errors(client):
-#     response = client.get(url_string(
-#         query='{ test, unknownOne, unknownTwo }'
-#     ))
-
-#     assert response.status_code == 400
-#     assert response_json(response) == {
-#         'errors': [
-#             {
-#                 'message': 'Cannot query field "unknownOne" on type "QueryRoot".',
-#                 'locations': [{'line': 1, 'column': 9}]
-#             },
-#             {
-#                 'message': 'Cannot query field "unknownTwo" on type "QueryRoot".',
-#                 'locations': [{'line': 1, 'column': 21}]
-#             }
-#         ]
-#     }
-
+    assert response.status_code == 400
+    assert response.content_type == 'application/json'
+    assert response.json == {
+        'data': None,
+        'errors': [
+            {
+                'message': 'Cannot query field "unknownOne" on type "SystemQueries".',
+                'locations': [{'line': 1, 'column': 10}]
+            },
+            {
+                'message': 'Cannot query field "unknownTwo" on type "SystemQueries".',
+                'locations': [{'line': 1, 'column': 22}]
+            }
+        ]
+    }
 
 # def test_errors_when_missing_operation_name(client):
-#     response = client.get(url_string(
-#         query='''
-#         query TestQuery { test }
-#         mutation TestMutation { writeTest { test } }
-#         '''
-#     ))
+#     response = client.get(encode_get_url(
+#             query='''
+#             query TestQuery { hello }
+#             mutation TestMutation { writeTest { test } }
+#             '''
+#         ),
+#         expect_errors=True)
 
 #     assert response.status_code == 400
-#     assert response_json(response) == {
+#     assert response.content_type == 'application/json'
+#     assert response.json == {
 #         'errors': [
 #             {
 #                 'message': 'Must provide operation name if query contains multiple operations.'

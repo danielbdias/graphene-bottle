@@ -3,6 +3,14 @@ from collections import namedtuple
 
 from bottle import request, response
 
+from graphql import GraphQLError, format_error as format_graphql_error
+
+def format_error(error):
+    if isinstance(error, GraphQLError):
+        return format_graphql_error(error)
+
+    return {'message': str(error)}
+
 def handle_graphql_response(func, graphene_schema):
     def wrapper():
         response.content_type = 'application/json'
@@ -12,7 +20,10 @@ def handle_graphql_response(func, graphene_schema):
             output = {'data': result.data}
 
             if result.errors is not None:
-                output['errors'] = result.errors
+                output['errors'] = [format_error(e) for e in result.errors]
+
+            if result.invalid:
+                response.status = 400
 
             return json.dumps(output)
         except Exception as e:
@@ -22,8 +33,13 @@ def handle_graphql_response(func, graphene_schema):
 
 def execute_get(graphene_schema):
     graphql_query = request.query['query']
+    graphql_variables = json.loads(request.query.get('variables', '{}'))
+    graphql_operation_name = request.query.get('operationName', None)
 
-    return graphene_schema.execute(graphql_query)
+    return graphene_schema.execute(
+        graphql_query,
+        variable_values=graphql_variables,
+        operation_name=graphql_operation_name)
 
 def execute_post(graphene_schema):
     graphql_data = request.json

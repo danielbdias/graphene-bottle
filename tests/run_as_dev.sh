@@ -10,5 +10,7 @@ echo Dependencies installed
 # run app
 echo Running app...
 
-#PYTHONPATH=. python -u tests/app.py
+# PYTHONPATH=. python -u tests/app.py
 tox -e py27 -- --cov=graphene_bottle
+#tox -e py36 -- --cov=graphene_bottle
+#tox -e pypy -- --cov=graphene_bottle
