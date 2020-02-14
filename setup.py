@@ -1,4 +1,6 @@
+import os
 from setuptools import setup, find_packages
+
 
 required_packages = [
   'graphene>=2.0',
